@@ -111,7 +111,7 @@ typedef struct {
 
 //existence
 tab* tab__new(GUumax itmSz, GUumax lenMax){
-	if(itmSz == 0){ return null; }
+	if(itmSz == 0){ return GEnull; }
 	tab* res    = heap__new(sizeof(tab));
 	res->len    = 0;
 	res->itmSz  = itmSz;
