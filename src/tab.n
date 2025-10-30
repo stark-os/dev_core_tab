@@ -8,9 +8,9 @@
 
 //data structure
 typedef struct {
-	GUulng len;
-	GUulng itmSz;
-	GUulng lenMax;
+	GUumax len;
+	GUumax itmSz;
+	GUumax lenMax;
 	ref    dat;
 } tab;
 
@@ -110,7 +110,7 @@ typedef struct {
 // ---------------- BASICS ----------------
 
 //existence
-tab* tab__new(GUulng itmSz, GUulng lenMax){
+tab* tab__new(GUumax itmSz, GUulng lenMax){
 	if(itmSz == 0){ return null; }
 	tab* res    = heap__new(sizeof(tab));
 	res->len    = 0;
@@ -132,7 +132,7 @@ void tab__free(tab* sbj) {
 #ifndef TAB__UNSAFE_ACCESS_ALLOWED
 static
 #endif
-void tab__unsafe_get(tab* sbj, GUulng idx, iref dst){
+void tab__unsafe_get(tab* sbj, GUumax idx, iref dst){
 	iref ir = {
 		.base   = sbj->dat,
 		.offset = idx * sbj->itmSz
@@ -147,7 +147,7 @@ void tab__unsafe_get(tab* sbj, GUulng idx, iref dst){
 #ifndef TAB__UNSAFE_ACCESS_ALLOWED
 static
 #endif
-void tab__unsafe_set(tab* sbj, GUulng idx, iref src){
+void tab__unsafe_set(tab* sbj, GUumax idx, iref src){
 	iref ir = {
 		.base   = sbj->dat,
 		.offset = idx * sbj->itmSz
@@ -162,12 +162,12 @@ void tab__unsafe_set(tab* sbj, GUulng idx, iref src){
 
 
 //safe indexing
-void tab__safe_get(tab* sbj, GUulng idx, iref dst){
+void tab__safe_get(tab* sbj, GUumax idx, iref dst){
 	if(idx >= sbj->len){ LLE__OOB return; }
 	LLE__SCC
 	tab__unsafe_get(sbj, idx, dst);
 }
-void tab__safe_set(tab* sbj, GUulng idx, iref src){
+void tab__safe_set(tab* sbj, GUumax idx, iref src){
 	if(idx >= sbj->len){ LLE__OOB return; }
 	LLE__SCC
 	tab__unsafe_set(sbj, idx, src);
@@ -203,7 +203,7 @@ void tab__safe_push(tab* sbj, iref src){
 //actions as a whole
 void tab__empty(    tab* sbj          ){ sbj->len = 0; }
 void tab__overwrite(tab* sbj, iref src){
-	for(GUulng i=0; i < sbj->len; i++){ tab__unsafe_set(sbj, i, src); }
+	for(GUumax i=0; i < sbj->len; i++){ tab__unsafe_set(sbj, i, src); }
 }
 void tab__fullfill(tab* sbj, iref src){
 	sbj->len = sbj->lenMax;
@@ -219,7 +219,7 @@ tab* tab__copy(tab* src){
 		.base   = heap__new(src->itmSz),
 		.offset = 0
 	};
-	for(GUulng i=0; i < src->len; i++){
+	for(GUumax i=0; i < src->len; i++){
 		tab__unsafe_get(src, i, itm);
 		tab__unsafe_push(dst, itm);
 	}
