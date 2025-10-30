@@ -176,10 +176,10 @@ void tab__safe_set(tab* sbj, GUumax idx, iref src){
 
 
 //last
-boo  tab__isEmpty(tab* sbj          ){ return sbj->len == 0; }
-void tab__last(   tab* sbj, iref dst){ tab__safe_get(sbj, sbj->len-1, dst); }
-void tab__rmLast( tab* sbj          ){ sbj->len--; }
-void tab__popLast(tab* sbj, iref dst){ tab__last(sbj, dst); tab__rmLast(sbj); }
+GUboo tab__isEmpty(tab* sbj          ){ return sbj->len == 0; }
+void  tab__last(   tab* sbj, iref dst){ tab__safe_get(sbj, sbj->len-1, dst); }
+void  tab__rmLast( tab* sbj          ){ sbj->len--; }
+void  tab__popLast(tab* sbj, iref dst){ tab__last(sbj, dst); tab__rmLast(sbj); }
 
 
 
