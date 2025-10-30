@@ -1,0 +1,228 @@
+// ---------------- DEFINITIONS ----------------
+
+//method selection (uncomment to include)
+//#define TAB__UNSAFE_ACCESS_ALLOWED
+
+//safe memory access: comment for more performance
+#define TAB__HEAP_SAFE
+
+//data structure
+typedef struct {
+	ulng len;
+	ulng itmSz;
+	ulng lenMax;
+	ref  dat;
+} tab;
+
+
+
+
+
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                              Tables by I.A.
+
+        These tab objects are "fixed-size arrays" or "immutable arrays". Every
+    region of the resulting data is not directly accessible by user, even if
+    allocated.
+
+        The length of the table is variable in the range of its maximum length
+    given at initialization. Then, this actual length will grow dynamically as
+    items are being added/removed from the table. However, the data allocation
+    in itself stays unchanged.
+
+
+
+    LAZYNESS:
+
+        At start, I wanted to make tables LAZY: By default, holding null data (not
+    allocated) until something is being set in it (then allocate only when really
+    needed).
+
+        However, this lazyness may lead the risk of having the actual data region
+    far from the tab instance in heap memory. This distance may cause some memory
+    access performance issues because of non-locality. Therefore, I decided to
+    operate allocations "once and for all" for these 2 fields, directly at table
+    creation.
+
+
+
+    PROS & CONS:
+
+    Advantages among other common structures:
+        - Local memory usage, all at the same place (optimal locality)
+        - Optimal memory storage (minimum metadata usage, direct data packing)
+        - Static at runtime (no more, no less allocations)
+        - Can be allocated on the stack (which is not the case here anyway)
+    Disadvantages among other common structures:
+        - Fixed maximum length (given at initialization)
+        - Require big allocation blocks => bad memory re-use
+        - Waste memory if not all the table is being used at runtime
+        - Can only add & remove items at the end of tab (similar to a stack)
+
+
+
+    A WORD ON MEMORY MANAGEMENT WITH THIS COMMON STRUCTURE:
+
+        This program adds a bunch of functions to work with tab objects containing
+    references of a specified size in heap. Every data is stored in heap and user
+    never has visibility over internal allocations & memory blocks.
+
+        Every interaction on a dynamic amount of memory involves copy from an
+    existing heap location to another. This way, user loose responsability of the
+    data engaged in any of these operations.
+
+    The only calls involving memory changes at user level are new/free() then.
+
+
+
+    Contact: https://github.com/iasebsil83
+
+    Let's Code !                                  By I.A..
+******************************************************************************************
+
+    LICENSE:
+
+    stark-os/dev/core/tab
+    Copyright (C) 2025 Sebastien SILVANO
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library.
+
+    If not, see <https://www.gnu.org/licenses/>.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+
+
+
+
+
+
+// ---------------- BASICS ----------------
+
+//existence
+tab* tab__new(ulng itmSz, ulng lenMax){
+	if(itmSz == 0){ return null; }
+	tab* res    = heap__new(sizeof(tab));
+	res->len    = 0;
+	res->itmSz  = itmSz;
+	res->lenMax = 0;
+
+	//no lazy alloc
+	res->dat = heap__new(itmSz * lenMax);
+	return res;
+}
+void tab__free(tab* sbj) {
+	heap__free(sbj->dat);
+	heap__free(sbj);
+}
+
+
+
+//unsafe indexing
+#ifndef TAB__UNSAFE_ACCESS_ALLOWED
+static
+#endif
+void tab__unsafe_get(tab* sbj, ulng idx, iref dst){
+	iref ir = {
+		.base   = sbj->dat,
+		.offset = idx * sbj->itmSz
+	};
+	#ifdef TAB__HEAP_SAFE
+	heap__safe_w(ir, dst, sbj->itmSz);
+	#else
+	heap__unsafe_w(ir, dst, sbj->itmSz);
+	#endif
+}
+
+#ifndef TAB__UNSAFE_ACCESS_ALLOWED
+static
+#endif
+void tab__unsafe_set(tab* sbj, ulng idx, iref src){
+	iref ir = {
+		.base   = sbj->dat,
+		.offset = idx * sbj->itmSz
+	};
+	#ifdef TAB__HEAP_SAFE
+	heap__safe_w(src, ir, sbj->itmSz);
+	#else
+	heap__unsafe_w(src, ir, sbj->itmSz);
+	#endif
+}
+
+
+
+//safe indexing
+void tab__safe_get(tab* sbj, ulng idx, iref dst){
+	if(idx >= sbj->len){ LLE__OOB return; }
+	LLE__SCC
+	tab__unsafe_get(sbj, idx, dst);
+}
+void tab__safe_set(tab* sbj, ulng idx, iref src){
+	if(idx >= sbj->len){ LLE__OOB return; }
+	LLE__SCC
+	tab__unsafe_set(sbj, idx, src);
+}
+
+
+
+//last
+boo  tab__isEmpty(tab* sbj          ){ return sbj->len == 0; }
+void tab__last(   tab* sbj, iref dst){ tab__safe_get(sbj, sbj->len-1, dst); }
+void tab__rmLast( tab* sbj          ){ sbj->len--; }
+void tab__popLast(tab* sbj, iref dst){ tab__last(sbj, dst); tab__rmLast(sbj); }
+
+
+
+//push
+#ifndef TAB__UNSAFE_ACCESS_ALLOWED
+static
+#endif
+void tab__unsafe_push(tab* sbj, iref src){
+	tab__unsafe_set(sbj, sbj->len, src);
+	sbj->len++;
+}
+
+void tab__safe_push(tab* sbj, iref src){
+	if(sbj->len >= sbj->lenMax){ LLE__OOB return; }
+	LLE__SCC
+	tab__unsafe_push(sbj, src);
+}
+
+
+
+//actions as a whole
+void tab__empty(    tab* sbj          ){ sbj->len = 0; }
+void tab__overwrite(tab* sbj, iref src){
+	for(ulng i=0; i < sbj->len; i++){ tab__unsafe_set(sbj, i, src); }
+}
+void tab__fullfill(tab* sbj, iref src){
+	sbj->len = sbj->lenMax;
+	tab__overwrite(sbj, src);
+}
+
+
+
+//actions between tabs
+tab* tab__copy(tab* src){
+	tab* dst = tab__new(src->itmSz, src->lenMax);
+	iref itm = {
+		.base   = heap__new(src->itmSz),
+		.offset = 0
+	};
+	for(ulng i=0; i < src->len; i++){
+		tab__unsafe_get(src, i, itm);
+		tab__unsafe_push(dst, itm);
+	}
+	heap__free(itm.base);
+	return dst;
+}
