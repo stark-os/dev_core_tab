@@ -1,0 +1,29 @@
+//#define TAB__UNSAFE_ACCESS_ALLOWED
+#define TAB__HEAP_SAFE
+typedef struct {
+	GUumax len;
+	GUumax itmSz;
+	GUumax lenMax;
+	ref    dat;
+} tab;
+typedef tab* GUtab;
+GUtab tab__new(GUumax itmSz, GUumax lenMax);
+void tab_free(GUtab sbj);
+#ifdef TAB__UNSAFE_ACCESS_ALLOWED
+void GTGUtab_Funsafe__get(GUtab sbj, GUumax idx, iref dst);
+void GTGUtab_Funsafe__set(GUtab sbj, GUumax idx, iref src);
+#endif
+void GTGUtab_Fsafe__get(GUtab sbj, GUumax idx, iref dst);
+void GTGUtab_Fsafe__set(GUtab sbj, GUumax idx, iref src);
+GUboo GTGUtab_FisEmpty(GUtab sbj);
+void  GTGUtab_Flast(GUtab sbj, iref dst);
+void  GTGUtab_FrmLast(GUtab sbj);
+void  GTGUtab_FpopLast(GUtab sbj, iref dst)
+#ifdef TAB__UNSAFE_ACCESS_ALLOWED
+void GTGUtab_Funsafe__push(GUtab sbj, iref src);
+#endif
+void GTGUtab_Fsafe__push(GUtab sbj, iref src);
+void GTGUtab_Fempty(GUtab sbj);
+void GTGUtab_Foverwrite(GUtab sbj, iref src);
+void GTGUtab_Ffullfill(GUtab sbj, iref src);
+void GTGUtab_Fcopy(GUtab src, GUtab dst);

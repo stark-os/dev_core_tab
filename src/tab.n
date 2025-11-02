@@ -13,6 +13,7 @@ typedef struct {
 	GUumax lenMax;
 	ref    dat;
 } tab;
+typedef tab* GUtab;
 
 
 
@@ -110,9 +111,9 @@ typedef struct {
 // ---------------- BASICS ----------------
 
 //existence
-tab* tab__new(GUumax itmSz, GUumax lenMax){
+GUtab tab__new(GUumax itmSz, GUumax lenMax){
 	if(itmSz == 0){ return GEnull; }
-	tab* res    = heap__new(sizeof(tab));
+	GUtab res   = heap__new(sizeof(tab));
 	res->len    = 0;
 	res->itmSz  = itmSz;
 	res->lenMax = 0;
@@ -121,7 +122,7 @@ tab* tab__new(GUumax itmSz, GUumax lenMax){
 	res->dat = heap__new(itmSz * lenMax);
 	return res;
 }
-void tab__free(tab* sbj) {
+void tab_free(GUtab sbj) {
 	heap__free(sbj->dat);
 	heap__free(sbj);
 }
@@ -132,7 +133,7 @@ void tab__free(tab* sbj) {
 #ifndef TAB__UNSAFE_ACCESS_ALLOWED
 static
 #endif
-void tab__unsafe_get(tab* sbj, GUumax idx, iref dst){
+void GTGUtab_Funsafe__get(GUtab sbj, GUumax idx, iref dst){
 	iref ir = {
 		.base   = sbj->dat,
 		.offset = idx * sbj->itmSz
@@ -147,7 +148,7 @@ void tab__unsafe_get(tab* sbj, GUumax idx, iref dst){
 #ifndef TAB__UNSAFE_ACCESS_ALLOWED
 static
 #endif
-void tab__unsafe_set(tab* sbj, GUumax idx, iref src){
+void GTGUtab_Funsafe__set(GUtab sbj, GUumax idx, iref src){
 	iref ir = {
 		.base   = sbj->dat,
 		.offset = idx * sbj->itmSz
@@ -162,24 +163,24 @@ void tab__unsafe_set(tab* sbj, GUumax idx, iref src){
 
 
 //safe indexing
-void tab__safe_get(tab* sbj, GUumax idx, iref dst){
+void GTGUtab_Fsafe__get(GUtab sbj, GUumax idx, iref dst){
 	if(idx >= sbj->len){ LLE__OOB return; }
 	LLE__SCC
-	tab__unsafe_get(sbj, idx, dst);
+	GTGUtab_Funsafe__get(sbj, idx, dst);
 }
-void tab__safe_set(tab* sbj, GUumax idx, iref src){
+void GTGUtab_Fsafe__set(GUtab sbj, GUumax idx, iref src){
 	if(idx >= sbj->len){ LLE__OOB return; }
 	LLE__SCC
-	tab__unsafe_set(sbj, idx, src);
+	GTGUtab_Funsafe__set(sbj, idx, src);
 }
 
 
 
 //last
-GUboo tab__isEmpty(tab* sbj          ){ return sbj->len == 0; }
-void  tab__last(   tab* sbj, iref dst){ tab__safe_get(sbj, sbj->len-1, dst); }
-void  tab__rmLast( tab* sbj          ){ sbj->len--; }
-void  tab__popLast(tab* sbj, iref dst){ tab__last(sbj, dst); tab__rmLast(sbj); }
+GUboo GTGUtab_FisEmpty(GUtab sbj          ){ return sbj->len == 0; }
+void  GTGUtab_Flast(   GUtab sbj, iref dst){ GTGUtab_Fsafe__get(sbj, sbj->len-1, dst); }
+void  GTGUtab_FrmLast( GUtab sbj          ){ sbj->len--; }
+void  GTGUtab_FpopLast(GUtab sbj, iref dst){ GTGUtab_Flast(sbj, dst); GTGUtab_FrmLast(sbj); }
 
 
 
@@ -187,42 +188,46 @@ void  tab__popLast(tab* sbj, iref dst){ tab__last(sbj, dst); tab__rmLast(sbj); }
 #ifndef TAB__UNSAFE_ACCESS_ALLOWED
 static
 #endif
-void tab__unsafe_push(tab* sbj, iref src){
-	tab__unsafe_set(sbj, sbj->len, src);
+void GTGUtab_Funsafe__push(GUtab sbj, iref src){
+	GTGUtab_Funsafe__set(sbj, sbj->len, src);
 	sbj->len++;
 }
 
-void tab__safe_push(tab* sbj, iref src){
+void GTGUtab_Fsafe__push(GUtab sbj, iref src){
 	if(sbj->len >= sbj->lenMax){ LLE__OOB return; }
 	LLE__SCC
-	tab__unsafe_push(sbj, src);
+	GTGUtab_Funsafe__push(sbj, src);
 }
 
 
 
 //actions as a whole
-void tab__empty(    tab* sbj          ){ sbj->len = 0; }
-void tab__overwrite(tab* sbj, iref src){
-	for(GUumax i=0; i < sbj->len; i++){ tab__unsafe_set(sbj, i, src); }
+void GTGUtab_Fempty(    GUtab sbj          ){ sbj->len = 0; }
+void GTGUtab_Foverwrite(GUtab sbj, iref src){
+	for(GUumax i=0; i < sbj->len; i++){ GTGUtab_Funsafe__set(sbj, i, src); }
 }
-void tab__fullfill(tab* sbj, iref src){
+void GTGUtab_Ffullfill(GUtab sbj, iref src){
 	sbj->len = sbj->lenMax;
-	tab__overwrite(sbj, src);
+	GTGUtab_Foverwrite(sbj, src);
 }
 
 
 
 //actions between tabs
-tab* tab__copy(tab* src){
-	tab* dst = tab__new(src->itmSz, src->lenMax);
+void GTGUtab_Fcopy(GUtab src, GUtab dst){
+	if(src->itmSz != dst->itmSz){  LLE__FAI return; }
+	if(src->len   >  dst->lenMax){ LLE__OOB return; }
+	LLE__SCC
+
+	//don't care about what was in dst, just write in it
+	dst->len = 0; //<=> dst.empty()
 	iref itm = {
 		.base   = heap__new(src->itmSz),
 		.offset = 0
 	};
 	for(GUumax i=0; i < src->len; i++){
-		tab__unsafe_get(src, i, itm);
-		tab__unsafe_push(dst, itm);
+		GTGUtab_Funsafe__get(src, i, itm);
+		GTGUtab_Funsafe__push(dst, itm);
 	}
 	heap__free(itm.base);
-	return dst;
 }

@@ -1,0 +1,13 @@
+tGUtab	s,1,GUumax,len,GUumax,itmSz,GUumax,lenMax
+
+fGTGUtab_Fsafe__get			void,GUtab,GUumax,iref
+fGTGUtab_Fsafe__set			void,GUtab,GUumax,iref
+fGTGUtab_FisEmpty			GUboo,GUtab
+fGTGUtab_Flast				void,GUtab,iref
+fGTGUtab_FrmLast			void,GUtab
+fGTGUtab_FpopLast			void,GUtab,iref
+fGTGUtab_Fsafe__push		void,GUtab,iref
+fGTGUtab_Fempty				void,GUtab          
+fGTGUtab_Foverwrite			void,GUtab,iref
+fGTGUtab_Ffullfill			void,GUtab,iref
+fGTGUtab_Fcopy				void,GUtab,GUtab
