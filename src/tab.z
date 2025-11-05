@@ -1,19 +1,12 @@
 // ---------------- DEFINITIONS ----------------
 
-//method selection (uncomment to include)
-//#define TAB__UNSAFE_ACCESS_ALLOWED
-
-//safe memory access: comment for more performance
-#define TAB__HEAP_SAFE
-
 //data structure
-typedef struct {
-	GUumax len;
-	GUumax itmSz;
-	GUumax lenMax;
-	ref    dat;
-} tab;
-typedef tab* GUtab;
+pub typ tab {
+	umax len,
+	umax itmSz,
+	umax lenMax,
+	ref  dat
+}
 
 
 
@@ -111,123 +104,110 @@ typedef tab* GUtab;
 // ---------------- BASICS ----------------
 
 //existence
-GUtab tab__new(GUumax itmSz, GUumax lenMax){
-	if(itmSz == 0){ return GEnull; }
-	GUtab res   = heap__new(sizeof(tab));
-	res->len    = 0;
-	res->itmSz  = itmSz;
-	res->lenMax = 0;
+pub fct tab.init(umax itmSz, umax lenMax) {
+	sbj.len    = 0
+	sbj.itmSz  = itmSz
+	sbj.lenMax = lenMax
 
 	//no lazy alloc
-	res->dat = heap__new(itmSz * lenMax);
-	return res;
+	if itmSz != 0 { sbj.dat = ^Heap.new(itmSz * lenMax) }
 }
-void tab_free(GUtab sbj) {
-	heap__free(sbj->dat);
-	heap__free(sbj);
+pub fct tab.free() {
+	^Heap.free(sbj.dat)
 }
 
 
 
 //unsafe indexing
-#ifndef TAB__UNSAFE_ACCESS_ALLOWED
-static
-#endif
-void GTGUtab_Funsafe__get(GUtab sbj, GUumax idx, iref dst){
-	iref ir = {
-		.base   = sbj->dat,
-		.offset = idx * sbj->itmSz
-	};
-	#ifdef TAB__HEAP_SAFE
-	heap__safe_w(ir, dst, sbj->itmSz);
-	#else
-	heap__unsafe_w(ir, dst, sbj->itmSz);
-	#endif
+#CFG  TAB__UNSAFE_ACCESS_ALLOWED { pub \}
+#!CFG TAB__UNSAFE_ACCESS_ALLOWED { prv \}
+fct tab.unsafe_get(umax idx, ref dst, umax offset){
+	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  sbj.dat, dst, idx*sbj.itmSz, sbj.itmSz) }
+	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(sbj.dat, dst, idx*sbj.itmSz, sbj.itmSz) }
 }
 
-#ifndef TAB__UNSAFE_ACCESS_ALLOWED
-static
-#endif
-void GTGUtab_Funsafe__set(GUtab sbj, GUumax idx, iref src){
-	iref ir = {
-		.base   = sbj->dat,
-		.offset = idx * sbj->itmSz
-	};
-	#ifdef TAB__HEAP_SAFE
-	heap__safe_w(src, ir, sbj->itmSz);
-	#else
-	heap__unsafe_w(src, ir, sbj->itmSz);
-	#endif
+#CFG  TAB__UNSAFE_ACCESS_ALLOWED { pub \}
+#!CFG TAB__UNSAFE_ACCESS_ALLOWED { prv \}
+fct tab.unsafe_set(umax idx, ref src, umax offset){
+	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  src, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
+	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(src, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
 }
 
 
 
 //safe indexing
-void GTGUtab_Fsafe__get(GUtab sbj, GUumax idx, iref dst){
-	if(idx >= sbj->len){ LLE__OOB return; }
-	LLE__SCC
-	GTGUtab_Funsafe__get(sbj, idx, dst);
+pub fct tab.safe_get(umax idx, ref dst, umax offset){
+	if idx >= sbj.len { #{lle_oob} ret }
+	#{lle_scc}
+	sbj.unsafe_get(idx, dst, offset)
 }
-void GTGUtab_Fsafe__set(GUtab sbj, GUumax idx, iref src){
-	if(idx >= sbj->len){ LLE__OOB return; }
-	LLE__SCC
-	GTGUtab_Funsafe__set(sbj, idx, src);
+pub fct tab.safe_set(umax idx, ref src, umax offset){
+	if(idx >= sbj.len){ #{lle_oob} ret }
+	#{lle_scc}
+	sbj.unsafe_set(idx, src, offset)
 }
 
 
 
 //last
-GUboo GTGUtab_FisEmpty(GUtab sbj          ){ return sbj->len == 0; }
-void  GTGUtab_Flast(   GUtab sbj, iref dst){ GTGUtab_Fsafe__get(sbj, sbj->len-1, dst); }
-void  GTGUtab_FrmLast( GUtab sbj          ){ sbj->len--; }
-void  GTGUtab_FpopLast(GUtab sbj, iref dst){ GTGUtab_Flast(sbj, dst); GTGUtab_FrmLast(sbj); }
+pub fct tab.isEmpty() boo {
+	ret sbj.len == 0
+}
+pub fct tab.last(ref dst, umax offset) {
+	sbj.safe_get(sbj.len-1, dst, offset)
+}
+pub fct tab.rmLast() {
+	sbj.len -= 1
+}
+pub fct tab.popLast(ref dst, umax offset) {
+	sbj.last(dst, offset)
+	sbj.rmLast()
+}
 
 
 
 //push
-#ifndef TAB__UNSAFE_ACCESS_ALLOWED
-static
-#endif
-void GTGUtab_Funsafe__push(GUtab sbj, iref src){
-	GTGUtab_Funsafe__set(sbj, sbj->len, src);
-	sbj->len++;
+#CFG  TAB__UNSAFE_ACCESS_ALLOWED { pub \}
+#!CFG TAB__UNSAFE_ACCESS_ALLOWED { prv \}
+fct tab.unsafe_push(ref src, umax offset) {
+	sbj.unsafe_set(sbj.len, src, offset)
+	sbj.len += 1
 }
 
-void GTGUtab_Fsafe__push(GUtab sbj, iref src){
-	if(sbj->len >= sbj->lenMax){ LLE__OOB return; }
-	LLE__SCC
-	GTGUtab_Funsafe__push(sbj, src);
+pub fct tab.safe_push(ref src, umax offset) {
+	if sbj.len >= sbj.lenMax { #{lle_oob} ret }
+	#{lle_scc}
+	sbj.unsafe_push(src, offset)
 }
 
 
 
 //actions as a whole
-void GTGUtab_Fempty(    GUtab sbj          ){ sbj->len = 0; }
-void GTGUtab_Foverwrite(GUtab sbj, iref src){
-	for(GUumax i=0; i < sbj->len; i++){ GTGUtab_Funsafe__set(sbj, i, src); }
+pub fct tab.empty() {
+	sbj.len = 0
 }
-void GTGUtab_Ffullfill(GUtab sbj, iref src){
-	sbj->len = sbj->lenMax;
-	GTGUtab_Foverwrite(sbj, src);
+pub fct tab.overwrite(ref src, umax offset) {
+	for i in sbj { sbj.unsafe_set(i, src, offset) }
+}
+pub fct tab.fullfill(ref src, umax offset) {
+	sbj.len = sbj.lenMax
+	sbj.overwrite(src)
 }
 
 
 
 //actions between tabs
-void GTGUtab_Fcopy(GUtab src, GUtab dst){
-	if(src->itmSz != dst->itmSz){  LLE__FAI return; }
-	if(src->len   >  dst->lenMax){ LLE__OOB return; }
-	LLE__SCC
+pub fct tab.copy(tab src, tab dst) {
+	if src.itmSz != dst.itmSz  { #{lle_fai} ret }
+	if src.len   >  dst.lenMax { #{lle_oob} ret }
+	#{lle_scc}
 
 	//don't care about what was in dst, just write in it
-	dst->len = 0; //<=> dst.empty()
-	iref itm = {
-		.base   = heap__new(src->itmSz),
-		.offset = 0
-	};
-	for(GUumax i=0; i < src->len; i++){
-		GTGUtab_Funsafe__get(src, i, itm);
-		GTGUtab_Funsafe__push(dst, itm);
+	dst.len = 0 //<=> dst.empty()
+	ref itm = ^Heap.new(src.itmSz)
+	for i in src {
+		src.unsafe_get(i, itm, 0)
+		dst.unsafe_push(itm, 0)
 	}
-	heap__free(itm.base);
+	^Heap.free(itm)
 }
