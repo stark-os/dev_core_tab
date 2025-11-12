@@ -2,9 +2,9 @@
 
 //data structure
 pub typ tab {
-	umax len,
-	umax itmSz,
-	umax lenMax,
+	smax len,
+	smax itmSz,
+	smax lenMax,
 	ref  dat
 }
 
@@ -104,7 +104,7 @@ pub typ tab {
 // ---------------- BASICS ----------------
 
 //existence
-pub fct tab.init(umax itmSz, umax lenMax) {
+pub fct tab.init(smax itmSz, smax lenMax) {
 	sbj.len    = 0
 	sbj.itmSz  = itmSz
 	sbj.lenMax = lenMax
@@ -119,29 +119,29 @@ pub fct tab.free() {
 
 
 //unsafe indexing
-#CFG  TAB__UNSAFE_ACCESS_ALLOWED { pub \}
-#!CFG TAB__UNSAFE_ACCESS_ALLOWED { prv \}
-fct tab.unsafe_get(umax idx, ref dst, umax offset){
-	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  sbj.dat, dst, idx*sbj.itmSz, sbj.itmSz) }
-	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(sbj.dat, dst, idx*sbj.itmSz, sbj.itmSz) }
+#CFG  TAB__UNSAFE_ACCESS { pub \}
+#!CFG TAB__UNSAFE_ACCESS { prv \}
+fct tab.unsafe_get(smax idx, ref dst, smax offset){
+	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  sbj.dat, idx*sbj.itmSz, dst, offset, sbj.itmSz) }
+	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(sbj.dat, idx*sbj.itmSz, dst, offset, sbj.itmSz) }
 }
 
-#CFG  TAB__UNSAFE_ACCESS_ALLOWED { pub \}
-#!CFG TAB__UNSAFE_ACCESS_ALLOWED { prv \}
-fct tab.unsafe_set(umax idx, ref src, umax offset){
-	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  src, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
-	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(src, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
+#CFG  TAB__UNSAFE_ACCESS { pub \}
+#!CFG TAB__UNSAFE_ACCESS { prv \}
+fct tab.unsafe_set(smax idx, ref src, smax offset){
+	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  src, offset, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
+	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(src, offset, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
 }
 
 
 
 //safe indexing
-pub fct tab.safe_get(umax idx, ref dst, umax offset){
+pub fct tab.safe_get(smax idx, ref dst, smax offset){
 	if idx >= sbj.len { #{lle_oob} ret }
 	#{lle_scc}
 	sbj.unsafe_get(idx, dst, offset)
 }
-pub fct tab.safe_set(umax idx, ref src, umax offset){
+pub fct tab.safe_set(smax idx, ref src, smax offset){
 	if(idx >= sbj.len){ #{lle_oob} ret }
 	#{lle_scc}
 	sbj.unsafe_set(idx, src, offset)
@@ -153,13 +153,13 @@ pub fct tab.safe_set(umax idx, ref src, umax offset){
 pub fct tab.isEmpty() boo {
 	ret sbj.len == 0
 }
-pub fct tab.last(ref dst, umax offset) {
+pub fct tab.last(ref dst, smax offset) {
 	sbj.safe_get(sbj.len-1, dst, offset)
 }
 pub fct tab.rmLast() {
 	sbj.len -= 1
 }
-pub fct tab.popLast(ref dst, umax offset) {
+pub fct tab.popLast(ref dst, smax offset) {
 	sbj.last(dst, offset)
 	sbj.rmLast()
 }
@@ -167,14 +167,14 @@ pub fct tab.popLast(ref dst, umax offset) {
 
 
 //push
-#CFG  TAB__UNSAFE_ACCESS_ALLOWED { pub \}
-#!CFG TAB__UNSAFE_ACCESS_ALLOWED { prv \}
-fct tab.unsafe_push(ref src, umax offset) {
+#CFG  TAB__UNSAFE_ACCESS { pub \}
+#!CFG TAB__UNSAFE_ACCESS { prv \}
+fct tab.unsafe_push(ref src, smax offset) {
 	sbj.unsafe_set(sbj.len, src, offset)
 	sbj.len += 1
 }
 
-pub fct tab.safe_push(ref src, umax offset) {
+pub fct tab.safe_push(ref src, smax offset) {
 	if sbj.len >= sbj.lenMax { #{lle_oob} ret }
 	#{lle_scc}
 	sbj.unsafe_push(src, offset)
@@ -186,10 +186,10 @@ pub fct tab.safe_push(ref src, umax offset) {
 pub fct tab.empty() {
 	sbj.len = 0
 }
-pub fct tab.overwrite(ref src, umax offset) {
+pub fct tab.overwrite(ref src, smax offset) {
 	for i in sbj { sbj.unsafe_set(i, src, offset) }
 }
-pub fct tab.fullfill(ref src, umax offset) {
+pub fct tab.fullfill(ref src, smax offset) {
 	sbj.len = sbj.lenMax
 	sbj.overwrite(src)
 }
@@ -197,16 +197,16 @@ pub fct tab.fullfill(ref src, umax offset) {
 
 
 //actions between tabs
-pub fct tab.copy(tab src, tab dst) {
-	if src.itmSz != dst.itmSz  { #{lle_fai} ret }
-	if src.len   >  dst.lenMax { #{lle_oob} ret }
+pub fct tab.copy(tab dst) {
+	if sbj.itmSz != dst.itmSz  { #{lle_fai} ret }
+	if sbj.len   >  dst.lenMax { #{lle_oob} ret }
 	#{lle_scc}
 
 	//don't care about what was in dst, just write in it
 	dst.len = 0 //<=> dst.empty()
-	ref itm = ^Heap.new(src.itmSz)
-	for i in src {
-		src.unsafe_get(i, itm, 0)
+	ref itm = ^Heap.new(sbj.itmSz)
+	for i in sbj {
+		sbj.unsafe_get(i, itm, 0)
 		dst.unsafe_push(itm, 0)
 	}
 	^Heap.free(itm)
