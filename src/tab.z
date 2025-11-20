@@ -157,7 +157,8 @@ pub fct tab.last(ref dst, smax offset) {
 	sbj.safe_get(sbj.len-1, dst, offset)
 }
 pub fct tab.rmLast() {
-	sbj.len -= 1
+	//sbj.len -= 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	sbj.len = sbj.len - 1
 }
 pub fct tab.popLast(ref dst, smax offset) {
 	sbj.last(dst, offset)
@@ -171,7 +172,8 @@ pub fct tab.popLast(ref dst, smax offset) {
 #!CFG TAB__UNSAFE_ACCESS { prv \}
 fct tab.unsafe_push(ref src, smax offset) {
 	sbj.unsafe_set(sbj.len, src, offset)
-	sbj.len += 1
+	//sbj.len += 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	sbj.len = sbj.len + 1
 }
 
 pub fct tab.safe_push(ref src, smax offset) {
@@ -191,7 +193,7 @@ pub fct tab.overwrite(ref src, smax offset) {
 }
 pub fct tab.fullfill(ref src, smax offset) {
 	sbj.len = sbj.lenMax
-	sbj.overwrite(src)
+	sbj.overwrite(src, offset)
 }
 
 
