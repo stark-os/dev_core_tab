@@ -1,7 +1,7 @@
 // ---------------- DEFINITIONS ----------------
 
 //data structure
-pub typ tab {
+pub typ tab[1] {
 	smax len,
 	smax itmSz,
 	smax lenMax,
@@ -62,11 +62,9 @@ pub typ tab {
     references of a specified size in heap. Every data is stored in heap and user
     never has visibility over internal allocations & memory blocks.
 
-        Every interaction on a dynamic amount of memory involves copy from an
-    existing heap location to another. This way, user loose responsability of the
-    data engaged in any of these operations.
-
-    The only calls involving memory changes at user level are new/free() then.
+        Every interaction on a dynamic amount of memory involves copy from a
+    reserved stack locations to an existing heap chunk dedicated. User looses the
+    responsability of carrying dead or alive references.
 
 
 
@@ -77,7 +75,7 @@ pub typ tab {
 
     LICENSE:
 
-    stark-os/dev/core/tab
+    stark-os/stk/zcore/tab
     Copyright (C) 2025 Sebastien SILVANO
 
     This library is free software; you can redistribute it and/or
@@ -121,48 +119,51 @@ pub fct tab.free() {
 //unsafe indexing
 #CFG  TAB__UNSAFE_ACCESS { pub \}
 #!CFG TAB__UNSAFE_ACCESS { prv \}
-fct tab.unsafe_get(smax idx, ref dst, smax offset){
-	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  sbj.dat, idx*sbj.itmSz, dst, offset, sbj.itmSz) }
-	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(sbj.dat, idx*sbj.itmSz, dst, offset, sbj.itmSz) }
+fct tab[dcn].unsafe_get(smax idx) dcn0 {
+	dcn0 res
+	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  sbj.dat, idx*sbj.itmSz, @res, 0, sbj.itmSz) }
+	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(sbj.dat, idx*sbj.itmSz, @res, 0, sbj.itmSz) }
+	ret res
 }
 
 #CFG  TAB__UNSAFE_ACCESS { pub \}
 #!CFG TAB__UNSAFE_ACCESS { prv \}
-fct tab.unsafe_set(smax idx, ref src, smax offset){
-	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  src, offset, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
-	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(src, offset, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
+fct tab[dcn].unsafe_set(smax idx, dcn0 elm) {
+	#CFG  TAB__HEAP_SAFE { ^Heap.safe_w(  @elm, 0, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
+	#!CFG TAB__HEAP_SAFE { ^Heap.unsafe_w(@elm, 0, sbj.dat, idx*sbj.itmSz, sbj.itmSz) }
 }
 
 
 
 //safe indexing
-pub fct tab.safe_get(smax idx, ref dst, smax offset){
+pub fct tab[dcn].safe_get(smax idx) dcn0 {
 	if idx >= sbj.len { #{lle_oob} ret }
 	#{lle_scc}
-	sbj.unsafe_get(idx, dst, offset)
+	ret sbj.unsafe_get(idx)
 }
-pub fct tab.safe_set(smax idx, ref src, smax offset){
+pub fct tab[dcn].safe_set(smax idx, dcn0 elm) {
 	if(idx >= sbj.len){ #{lle_oob} ret }
 	#{lle_scc}
-	sbj.unsafe_set(idx, src, offset)
+	sbj.unsafe_set(idx, elm)
 }
 
 
 
 //last
-pub fct tab.isEmpty() boo {
+pub fct tab.isEmpty() bol {
 	ret sbj.len == 0
 }
-pub fct tab.last(ref dst, smax offset) {
-	sbj.safe_get(sbj.len-1, dst, offset)
+pub fct tab[dcn].last() dcn0 {
+	ret sbj.safe_get(sbj.len-1, dst, offset)
 }
 pub fct tab.rmLast() {
 	//sbj.len -= 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	sbj.len = sbj.len - 1
 }
-pub fct tab.popLast(ref dst, smax offset) {
-	sbj.last(dst, offset)
+pub fct tab[dcn].popLast() {
+	res = sbj.last()
 	sbj.rmLast()
+	ret res
 }
 
 
@@ -170,16 +171,16 @@ pub fct tab.popLast(ref dst, smax offset) {
 //push
 #CFG  TAB__UNSAFE_ACCESS { pub \}
 #!CFG TAB__UNSAFE_ACCESS { prv \}
-fct tab.unsafe_push(ref src, smax offset) {
-	sbj.unsafe_set(sbj.len, src, offset)
+fct tab[dcn].unsafe_push(dcn0 elm) {
+	sbj.unsafe_set(sbj.len, elm)
 	//sbj.len += 1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	sbj.len = sbj.len + 1
 }
 
-pub fct tab.safe_push(ref src, smax offset) {
+pub fct tab[dcn].safe_push(dcn0 elm) {
 	if sbj.len >= sbj.lenMax { #{lle_oob} ret }
 	#{lle_scc}
-	sbj.unsafe_push(src, offset)
+	sbj.unsafe_push(elm)
 }
 
 
@@ -188,28 +189,25 @@ pub fct tab.safe_push(ref src, smax offset) {
 pub fct tab.empty() {
 	sbj.len = 0
 }
-pub fct tab.overwrite(ref src, smax offset) {
-	for i in sbj { sbj.unsafe_set(i, src, offset) }
+pub fct tab[dcn].overwrite(dcn0 elm) {
+	for i in sbj { sbj.unsafe_set(i, elm) }
 }
-pub fct tab.fullfill(ref src, smax offset) {
+pub fct tab[dcn].fullfill(dcn0 elm) {
 	sbj.len = sbj.lenMax
-	sbj.overwrite(src, offset)
+	sbj.overwrite(elm)
 }
 
 
 
 //actions between tabs
-pub fct tab.copy(tab dst) {
-	if sbj.itmSz != dst.itmSz  { #{lle_fai} ret }
+pub fct tab[dcn].copy(tab[dcn0] dst) {
+	//if sbj.itmSz != dst.itmSz  { #{lle_fai} ret } //<<<<<<<<<<<<<<<<<<<<<< SHOULD NOT BE REQUIRED BECAUSE PARAM HAS SAME DECLINATION
 	if sbj.len   >  dst.lenMax { #{lle_oob} ret }
 	#{lle_scc}
 
 	//don't care about what was in dst, just write in it
 	dst.len = 0 //<=> dst.empty()
-	ref itm = ^Heap.new(sbj.itmSz)
 	for i in sbj {
-		sbj.unsafe_get(i, itm, 0)
-		dst.unsafe_push(itm, 0)
+		dst.unsafe_push(sbj.unsafe_get(i))
 	}
-	^Heap.free(itm)
 }

@@ -1,6 +1,6 @@
-t0c Memory table management library
+t0c Memory table library
 
-l N library for managing memory tables.
+l N library for manipulating memory tables.
 
 b
 b
@@ -28,7 +28,7 @@ t1 Compatibility
 
 t2 Target
 
-l Stark OS \lhttps://github.com/stark-os/dev/core/core\lcore\l.
+l Stark OS \lhttps://github.com/stark-os/stk/zcore/zcore\lzcore\l.
 
 
 t2 Build requirements
@@ -47,7 +47,7 @@ l Nothing to install.
 
 t2 Usage
 
-l See Stark OS \lhttps://github.com/stark-os/dev/core/core\lcore\l.
+l See Stark OS \lhttps://github.com/stark-os/stk/zcore/zcore\lzcore\l.
 
 
 t2 Uninstall
